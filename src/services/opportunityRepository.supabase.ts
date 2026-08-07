@@ -104,4 +104,9 @@ export class SupabaseOpportunityRepository implements OpportunityRepository {
     if (error) throw error;
     return rowToOpportunity(data as OpportunityRow);
   }
+
+  async remove(id: string): Promise<void> {
+    const { error } = await this.client.from(TABLE).delete().eq("id", id);
+    if (error) throw error;
+  }
 }

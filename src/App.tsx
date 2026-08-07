@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
+import "./App.css";
 import { AddOpportunityForm } from "./components/AddOpportunityForm";
 import { OpportunityList } from "./components/OpportunityList";
 import { hasCalendarAccessThisSession, signInWithGoogle, signOut } from "./lib/auth";
@@ -50,39 +51,78 @@ function App() {
     }
   };
 
+  const handleDelete = async (id: string) => {
+    setError(null);
+    try {
+      await store.remove(id);
+      setOpportunities(store.all);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete opportunity.");
+    }
+  };
+
   if (!session) {
     return (
-      <section>
-        <h1>DanceTracker</h1>
-        <p>Sign in with Google to track your opportunities and sync deadlines to your calendar.</p>
-        <button type="button" onClick={() => signInWithGoogle()}>
-          Sign in with Google
-        </button>
-      </section>
+      <div className="signin-screen">
+        <div className="signin-card">
+          <span className="brand-mark" aria-hidden="true">D</span>
+          <h1>
+            Dance<em>Tracker</em>
+          </h1>
+          <p>Sign in with Google to track your opportunities and sync deadlines to your calendar.</p>
+          <button type="button" className="btn btn-primary" onClick={() => signInWithGoogle()}>
+            Sign in with Google
+          </button>
+        </div>
+      </div>
     );
   }
 
+  const calendarAccess = hasCalendarAccessThisSession(session);
+
   return (
-    <section>
-      <header>
-        <h1>DanceTracker</h1>
-        <p>
-          Signed in as {session.user.email}
-          {" — "}
-          <button type="button" onClick={() => signOut()}>
+    <div className="app-shell">
+      <header className="app-header">
+        <div className="app-header-brand">
+          <span className="brand-mark" aria-hidden="true">D</span>
+          <h1>
+            Dance<em>Tracker</em>
+          </h1>
+        </div>
+        <div className="app-header-user">
+          <span className="email">{session.user.email}</span>
+          <span className={`calendar-status${calendarAccess ? " is-active" : ""}`}>
+            Calendar access {calendarAccess ? "granted this session" : "not granted"}
+          </span>
+          <button type="button" className="btn btn-ghost" onClick={() => signOut()}>
             Sign out
           </button>
-        </p>
-        <p>
-          Calendar access granted this session: {hasCalendarAccessThisSession(session) ? "yes" : "no"}
-        </p>
+        </div>
       </header>
 
-      {error && <p role="alert">{error}</p>}
+      {error && (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      )}
 
-      <AddOpportunityForm onSubmit={handleAdd} />
-      <OpportunityList opportunities={opportunities} onStatusChange={handleStatusChange} />
-    </section>
+      <div className="app-layout">
+        <aside className="form-panel">
+          <AddOpportunityForm onSubmit={handleAdd} />
+        </aside>
+        <main className="list-panel">
+          <div className="list-panel-heading">
+            <h2>Opportunities</h2>
+            <span className="count-badge">{opportunities.length}</span>
+          </div>
+          <OpportunityList
+            opportunities={opportunities}
+            onStatusChange={handleStatusChange}
+            onDelete={handleDelete}
+          />
+        </main>
+      </div>
+    </div>
   );
 }
 

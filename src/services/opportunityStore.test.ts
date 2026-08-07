@@ -35,4 +35,16 @@ describe("OpportunityStore", () => {
     expect(updated.status).toBe("applied");
     expect(store.all).toEqual([updated]);
   });
+
+  it("remove deletes the opportunity via the repository and drops it from the list", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    const kept = await store.add({ instagramUrl: "https://instagram.com/p/keep" });
+    const removed = await store.add({ instagramUrl: "https://instagram.com/p/remove" });
+
+    await store.remove(removed.id);
+
+    expect(store.all).toEqual([kept]);
+    expect(await repository.list()).toEqual([kept]);
+  });
 });

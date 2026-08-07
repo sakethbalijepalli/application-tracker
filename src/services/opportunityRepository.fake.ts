@@ -22,4 +22,8 @@ export class FakeOpportunityRepository implements OpportunityRepository {
     this.opportunities[index] = updated;
     return updated;
   }
+
+  async remove(id: string): Promise<void> {
+    this.opportunities = this.opportunities.filter((opportunity) => opportunity.id !== id);
+  }
 }

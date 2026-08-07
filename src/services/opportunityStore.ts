@@ -31,4 +31,9 @@ export class OpportunityStore {
     );
     return updated;
   }
+
+  async remove(id: string): Promise<void> {
+    await this.repository.remove(id);
+    this.opportunities = this.opportunities.filter((opportunity) => opportunity.id !== id);
+  }
 }
