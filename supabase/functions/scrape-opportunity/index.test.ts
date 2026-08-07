@@ -70,3 +70,25 @@ Deno.test("extractOpportunityDetails leaves deadline/performanceDate undefined w
   assertEquals(result.deadline, undefined);
   assertEquals(result.performanceDate, undefined);
 });
+
+Deno.test("extractOpportunityDetails pulls a deadline from OCR'd flyer text when the caption doesn't mention one", () => {
+  const result = extractOpportunityDetails(
+    { caption: "Come dance with us! Link in bio." },
+    {},
+    REF_DATE,
+    "AUDITIONS\nApplication due August 31",
+  );
+
+  assertEquals(result.deadline, "2026-08-31");
+});
+
+Deno.test("extractOpportunityDetails prefers a caption date over a conflicting OCR date", () => {
+  const result = extractOpportunityDetails(
+    { caption: "Deadline: March 3, 2026." },
+    {},
+    REF_DATE,
+    "AUDITIONS\nApplication due August 31",
+  );
+
+  assertEquals(result.deadline, "2026-03-03");
+});

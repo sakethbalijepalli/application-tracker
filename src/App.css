@@ -264,6 +264,9 @@ h1 em,
 .form-panel {
   position: sticky;
   top: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
 
 .list-panel {
@@ -316,6 +319,72 @@ h1 em,
 
 .opportunity-form h2 {
   font-style: italic;
+}
+
+/* Bulk add */
+
+.bulk-add {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--space-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.bulk-add h2 {
+  font-style: italic;
+}
+
+.bulk-add textarea {
+  min-height: 88px;
+  font-size: 14px;
+}
+
+.bulk-add-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: 13px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.bulk-add-results li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.bulk-add-url {
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bulk-add-status {
+  font-weight: 600;
+}
+
+.bulk-add-results li[data-status='added'] .bulk-add-status {
+  color: var(--status-accepted-text);
+}
+
+.bulk-add-results li[data-status='failed'] .bulk-add-status {
+  color: var(--danger);
+}
+
+.bulk-add-results li[data-status='fetching'] .bulk-add-status {
+  color: var(--gold-bright);
 }
 
 .form-grid {
@@ -474,6 +543,35 @@ h1 em,
   gap: var(--space-1);
   font-size: 14px;
   color: var(--text-muted);
+}
+
+.sync-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sync-btn {
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.sync-btn:hover:not(:disabled) {
+  border-color: var(--gold-border);
+  color: var(--gold-bright);
+}
+
+.sync-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .opportunity-card-footer {

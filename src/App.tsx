@@ -2,10 +2,14 @@ import type { Session } from "@supabase/supabase-js";
 import { useEffect, useMemo, useState } from "react";
 import "./App.css";
 import { AddOpportunityForm } from "./components/AddOpportunityForm";
-import { OpportunityList } from "./components/OpportunityList";
+import { BulkAddOpportunities } from "./components/BulkAddOpportunities";
+import { OpportunityList, type SyncKind } from "./components/OpportunityList";
 import { hasCalendarAccessThisSession, signInWithGoogle, signOut } from "./lib/auth";
+import { storeCalendarToken } from "./lib/storeCalendarToken";
 import { supabase } from "./lib/supabaseClient";
 import type { Opportunity, OpportunityStatus } from "./models/opportunity";
+import { CalendarService } from "./services/calendarService";
+import { GoogleCalendarClient } from "./services/calendarClient.google";
 import { SupabaseOpportunityRepository } from "./services/opportunityRepository.supabase";
 import { OpportunityStore } from "./services/opportunityStore";
 
@@ -13,13 +17,30 @@ function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [calendarConnected, setCalendarConnected] = useState(false);
+  const [syncingKey, setSyncingKey] = useState<string | null>(null);
 
   const store = useMemo(() => new OpportunityStore(new SupabaseOpportunityRepository(supabase)), []);
+  const calendarService = useMemo(() => new CalendarService(new GoogleCalendarClient()), []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
+
+      // provider_refresh_token is only ever present in the session object at this exact
+      // moment (right after the OAuth callback) — Supabase never persists it. Capture and
+      // store it server-side now, since this is the only chance to do so.
+      if (hasCalendarAccessThisSession(newSession)) {
+        storeCalendarToken(newSession!.provider_refresh_token!)
+          .then(() => setCalendarConnected(true))
+          .catch((err) => {
+            setCalendarConnected(false);
+            setError(
+              `Failed to save calendar access: ${err instanceof Error ? err.message : "unknown error"}. Sign out and back in to retry.`,
+            );
+          });
+      }
     });
     return () => subscription.subscription.unsubscribe();
   }, []);
@@ -61,6 +82,29 @@ function App() {
     }
   };
 
+  const handleSync = async (id: string, kind: SyncKind) => {
+    const opportunity = opportunities.find((o) => o.id === id);
+    if (!opportunity) return;
+
+    setError(null);
+    setSyncingKey(`${id}-${kind}`);
+    try {
+      const synced =
+        kind === "deadline"
+          ? await calendarService.syncDeadlineEvent(opportunity)
+          : await calendarService.syncPerformanceEvent(opportunity);
+      await store.update(id, {
+        deadlineEventId: synced.deadlineEventId,
+        performanceEventId: synced.performanceEventId,
+      });
+      setOpportunities(store.all);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : `Failed to sync ${kind} to calendar.`);
+    } finally {
+      setSyncingKey(null);
+    }
+  };
+
   if (!session) {
     return (
       <div className="signin-screen">
@@ -78,8 +122,6 @@ function App() {
     );
   }
 
-  const calendarAccess = hasCalendarAccessThisSession(session);
-
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -91,8 +133,8 @@ function App() {
         </div>
         <div className="app-header-user">
           <span className="email">{session.user.email}</span>
-          <span className={`calendar-status${calendarAccess ? " is-active" : ""}`}>
-            Calendar access {calendarAccess ? "granted this session" : "not granted"}
+          <span className={`calendar-status${calendarConnected ? " is-active" : ""}`}>
+            Calendar {calendarConnected ? "connected" : "not connected"}
           </span>
           <button type="button" className="btn btn-ghost" onClick={() => signOut()}>
             Sign out
@@ -108,6 +150,7 @@ function App() {
 
       <div className="app-layout">
         <aside className="form-panel">
+          <BulkAddOpportunities onAdd={handleAdd} />
           <AddOpportunityForm onSubmit={handleAdd} />
         </aside>
         <main className="list-panel">
@@ -119,6 +162,8 @@ function App() {
             opportunities={opportunities}
             onStatusChange={handleStatusChange}
             onDelete={handleDelete}
+            onSync={handleSync}
+            syncingKey={syncingKey}
           />
         </main>
       </div>

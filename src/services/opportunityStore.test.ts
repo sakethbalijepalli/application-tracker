@@ -36,6 +36,33 @@ describe("OpportunityStore", () => {
     expect(store.all).toEqual([updated]);
   });
 
+  it("updateStatus never touches the application link, even when moving to accepted", async () => {
+    // Hiding the link once accepted is a display concern (see OpportunityList), not a
+    // data-mutation one — destroying it here made it unrecoverable if status moved away
+    // from "accepted" again.
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    const created = await store.add({
+      instagramUrl: "https://instagram.com/p/abc",
+      applicationLink: "https://example.com/apply",
+    });
+
+    const updated = await store.updateStatus(created.id, "accepted");
+
+    expect(updated.applicationLink).toBe("https://example.com/apply");
+  });
+
+  it("update patches arbitrary fields via the repository and reflects them in the list", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    const created = await store.add({ instagramUrl: "https://instagram.com/p/abc" });
+
+    const updated = await store.update(created.id, { deadlineEventId: "event-1" });
+
+    expect(updated.deadlineEventId).toBe("event-1");
+    expect(store.all).toEqual([updated]);
+  });
+
   it("remove deletes the opportunity via the repository and drops it from the list", async () => {
     const repository = new FakeOpportunityRepository();
     const store = new OpportunityStore(repository);

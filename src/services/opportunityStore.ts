@@ -25,7 +25,11 @@ export class OpportunityStore {
   }
 
   async updateStatus(id: string, status: OpportunityStatus): Promise<Opportunity> {
-    const updated = await this.repository.update(id, { status });
+    return this.update(id, { status });
+  }
+
+  async update(id: string, patch: Partial<Omit<Opportunity, "id">>): Promise<Opportunity> {
+    const updated = await this.repository.update(id, patch);
     this.opportunities = this.opportunities.map((opportunity) =>
       opportunity.id === id ? updated : opportunity,
     );

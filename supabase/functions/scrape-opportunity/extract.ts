@@ -5,6 +5,8 @@ export interface ApifyInstagramPostItem {
   caption?: string;
   ownerFullName?: string;
   ownerUsername?: string;
+  displayUrl?: string;
+  carouselImages?: string[];
 }
 
 export type ApifyInstagramProfileItem = LinkedProfile;
@@ -21,9 +23,12 @@ export function extractOpportunityDetails(
   post: ApifyInstagramPostItem,
   profile: ApifyInstagramProfileItem,
   referenceDate: Date,
+  imageText: string = "",
 ): ScrapedOpportunityDetails {
   const caption = post.caption ?? "";
-  const { deadline, performanceDate } = extractDatesFromCaption(caption, referenceDate);
+  // Caption comes first so its dates win on a keyword tie — OCR'd flyer text is a fallback
+  // source, and less trustworthy than the poster's own written caption when both mention a date.
+  const { deadline, performanceDate } = extractDatesFromCaption(`${caption}\n${imageText}`, referenceDate);
 
   return {
     captionText: caption,

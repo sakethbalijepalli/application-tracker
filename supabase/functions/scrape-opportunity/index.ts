@@ -4,6 +4,7 @@ import {
   type ApifyInstagramPostItem,
   type ApifyInstagramProfileItem,
 } from "./extract.ts";
+import { detectTextInImage } from "./ocr.ts";
 
 const APIFY_TOKEN = Deno.env.get("APIFY_TOKEN");
 const APIFY_ACTOR = "apify~instagram-scraper";
@@ -113,5 +114,16 @@ Deno.serve(async (req: Request) => {
     }
   }
 
-  return jsonResponse(extractOpportunityDetails(post, profile, new Date()), 200);
+  let imageText = "";
+  const imageUrl = post.carouselImages?.[0] ?? post.displayUrl;
+  if (imageUrl) {
+    try {
+      imageText = await detectTextInImage(imageUrl);
+    } catch {
+      // OCR is a nice-to-have — a flyer that can't be read shouldn't fail a scrape that
+      // otherwise succeeded from the caption/profile alone.
+    }
+  }
+
+  return jsonResponse(extractOpportunityDetails(post, profile, new Date(), imageText), 200);
 });

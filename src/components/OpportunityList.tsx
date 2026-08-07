@@ -2,13 +2,29 @@ import type { Opportunity, OpportunityStatus } from "../models/opportunity";
 
 const STATUSES: OpportunityStatus[] = ["discovered", "applied", "accepted", "rejected"];
 
+/** Deadlines/performance dates are stored as UTC-midnight-anchored date-only values —
+ * formatting in the viewer's local timezone would shift the displayed day (e.g. "2026-11-01"
+ * renders as Oct 31 in US timezones), so this always reads the date in UTC instead. */
+function formatDateOnly(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString(undefined, {
+    timeZone: "UTC",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+export type SyncKind = "deadline" | "performance";
+
 interface OpportunityListProps {
   opportunities: Opportunity[];
   onStatusChange: (id: string, status: OpportunityStatus) => void;
   onDelete: (id: string) => void;
+  onSync: (id: string, kind: SyncKind) => void;
+  syncingKey: string | null;
 }
 
-export function OpportunityList({ opportunities, onStatusChange, onDelete }: OpportunityListProps) {
+export function OpportunityList({ opportunities, onStatusChange, onDelete, onSync, syncingKey }: OpportunityListProps) {
   if (opportunities.length === 0) {
     return <p className="empty-state">No opportunities yet — add one above.</p>;
   }
@@ -43,10 +59,50 @@ export function OpportunityList({ opportunities, onStatusChange, onDelete }: Opp
           >
             View Instagram post ↗
           </a>
+          {opportunity.applicationLink && opportunity.status !== "accepted" && (
+            <a
+              className="opportunity-card-link"
+              href={opportunity.applicationLink}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Application link ↗
+            </a>
+          )}
           <div className="opportunity-card-meta">
-            {opportunity.deadline && <span>Deadline: {new Date(opportunity.deadline).toLocaleDateString()}</span>}
+            {opportunity.deadline && (
+              <div className="sync-row">
+                <span>Deadline: {formatDateOnly(opportunity.deadline)}</span>
+                <button
+                  type="button"
+                  className="sync-btn"
+                  disabled={syncingKey === `${opportunity.id}-deadline`}
+                  onClick={() => onSync(opportunity.id, "deadline")}
+                >
+                  {syncingKey === `${opportunity.id}-deadline`
+                    ? "Syncing…"
+                    : opportunity.deadlineEventId
+                      ? "Synced ✓"
+                      : "Sync"}
+                </button>
+              </div>
+            )}
             {opportunity.performanceDate && (
-              <span>Performance: {new Date(opportunity.performanceDate).toLocaleDateString()}</span>
+              <div className="sync-row">
+                <span>Performance: {formatDateOnly(opportunity.performanceDate)}</span>
+                <button
+                  type="button"
+                  className="sync-btn"
+                  disabled={syncingKey === `${opportunity.id}-performance`}
+                  onClick={() => onSync(opportunity.id, "performance")}
+                >
+                  {syncingKey === `${opportunity.id}-performance`
+                    ? "Syncing…"
+                    : opportunity.performanceEventId
+                      ? "Synced ✓"
+                      : "Sync"}
+                </button>
+              </div>
             )}
           </div>
           <div className="opportunity-card-footer">
