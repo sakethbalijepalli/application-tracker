@@ -75,6 +75,102 @@ describe("OpportunityStore", () => {
     expect(updated.performanceEventId).toBe("event-2");
   });
 
+  it("add rejects a duplicate: same organization, deadline, and performance date already tracked", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    await store.add({
+      instagramUrl: "https://instagram.com/p/abc",
+      organizationName: "City Ballet Co",
+      deadline: "2026-09-01T00:00:00.000Z",
+      performanceDate: "2027-03-05T00:00:00.000Z",
+    });
+
+    await expect(
+      store.add({
+        instagramUrl: "https://instagram.com/p/xyz",
+        organizationName: "City Ballet Co",
+        deadline: "2026-09-01T00:00:00.000Z",
+        performanceDate: "2027-03-05T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(/already/i);
+
+    expect(store.all).toHaveLength(1);
+    expect(await repository.list()).toHaveLength(1);
+  });
+
+  it("add rejects a duplicate even when one date is a bare YYYY-MM-DD and the other a full ISO timestamp", async () => {
+    // Bulk-add persists the scraper's bare "YYYY-MM-DD" deadline as-is; the single-add form
+    // always converts through new Date(...).toISOString() before submitting, even for a
+    // scraped value the user didn't edit. Same real date, two different string shapes.
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    await store.add({
+      instagramUrl: "https://instagram.com/p/abc",
+      organizationName: "City Ballet Co",
+      deadline: "2026-09-01",
+    });
+
+    await expect(
+      store.add({
+        instagramUrl: "https://instagram.com/p/xyz",
+        organizationName: "City Ballet Co",
+        deadline: "2026-09-01T00:00:00.000Z",
+      }),
+    ).rejects.toThrow(/already/i);
+
+    expect(store.all).toHaveLength(1);
+  });
+
+  it("add treats organization names as duplicates regardless of case or surrounding whitespace", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    await store.add({
+      instagramUrl: "https://instagram.com/p/abc",
+      organizationName: "City Ballet Co",
+      deadline: "2026-09-01",
+    });
+
+    await expect(
+      store.add({
+        instagramUrl: "https://instagram.com/p/xyz",
+        organizationName: "  city ballet co  ",
+        deadline: "2026-09-01",
+      }),
+    ).rejects.toThrow(/already/i);
+
+    expect(store.all).toHaveLength(1);
+  });
+
+  it("add allows a second opportunity for the same organization when the dates differ", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    await store.add({
+      instagramUrl: "https://instagram.com/p/abc",
+      organizationName: "City Ballet Co",
+      deadline: "2026-09-01T00:00:00.000Z",
+    });
+
+    const second = await store.add({
+      instagramUrl: "https://instagram.com/p/xyz",
+      organizationName: "City Ballet Co",
+      deadline: "2026-10-15T00:00:00.000Z",
+    });
+
+    expect(store.all).toHaveLength(2);
+    expect(second.deadline).toBe("2026-10-15T00:00:00.000Z");
+  });
+
+  it("add does not treat two opportunities with no organization name or dates as duplicates", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    await store.add({ instagramUrl: "https://instagram.com/p/abc" });
+
+    const second = await store.add({ instagramUrl: "https://instagram.com/p/xyz" });
+
+    expect(store.all).toHaveLength(2);
+    expect(second.instagramUrl).toBe("https://instagram.com/p/xyz");
+  });
+
   it("remove deletes the opportunity via the repository and drops it from the list", async () => {
     const repository = new FakeOpportunityRepository();
     const store = new OpportunityStore(repository);
