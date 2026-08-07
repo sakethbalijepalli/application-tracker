@@ -2,6 +2,16 @@ import type { Opportunity, OpportunityStatus } from "../models/opportunity";
 
 const STATUSES: OpportunityStatus[] = ["discovered", "applied", "accepted", "rejected"];
 
+// Mirrors App.tsx's handleStatusChange: applied/accepted delete the deadline event only,
+// rejected deletes both. Each is a real, hard-to-reverse action against Google Calendar, not
+// just a local status flip — confirming first catches the common slip (wrong option in the
+// status dropdown) before anything is actually deleted.
+const CALENDAR_KINDS_CLEARED_BY_STATUS: Partial<Record<OpportunityStatus, ("deadline" | "performance")[]>> = {
+  applied: ["deadline"],
+  accepted: ["deadline"],
+  rejected: ["deadline", "performance"],
+};
+
 /** Deadlines/performance dates are stored as UTC-midnight-anchored date-only values —
  * formatting in the viewer's local timezone would shift the displayed day (e.g. "2026-11-01"
  * renders as Oct 31 in US timezones), so this always reads the date in UTC instead. */
@@ -34,6 +44,26 @@ export function OpportunityList({ opportunities, onStatusChange, onDelete, onSyn
     if (window.confirm(`Delete ${label}? This can't be undone.`)) {
       onDelete(opportunity.id);
     }
+  };
+
+  const handleStatusChange = (opportunity: Opportunity, status: OpportunityStatus) => {
+    const clearedKinds = CALENDAR_KINDS_CLEARED_BY_STATUS[status] ?? [];
+    const willDeleteDeadline = clearedKinds.includes("deadline") && Boolean(opportunity.deadlineEventId);
+    const willDeletePerformance = clearedKinds.includes("performance") && Boolean(opportunity.performanceEventId);
+
+    if (willDeleteDeadline || willDeletePerformance) {
+      const label = opportunity.organizationName || "this opportunity";
+      const eventWord =
+        willDeleteDeadline && willDeletePerformance
+          ? "deadline and performance reminders"
+          : willDeleteDeadline
+            ? "deadline reminder"
+            : "performance reminder";
+      if (!window.confirm(`Marking ${label} as ${status} will remove its ${eventWord} from your calendar. Continue?`)) {
+        return;
+      }
+    }
+    onStatusChange(opportunity.id, status);
   };
 
   return (
@@ -112,7 +142,7 @@ export function OpportunityList({ opportunities, onStatusChange, onDelete, onSyn
                 className="status-select"
                 data-status={opportunity.status}
                 value={opportunity.status}
-                onChange={(e) => onStatusChange(opportunity.id, e.target.value as OpportunityStatus)}
+                onChange={(e) => handleStatusChange(opportunity, e.target.value as OpportunityStatus)}
               >
                 {STATUSES.map((status) => (
                   <option key={status} value={status}>
