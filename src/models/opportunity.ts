@@ -14,14 +14,16 @@ export interface Opportunity {
   createdAt: string;
 }
 
-export function createOpportunity(input: {
+export interface NewOpportunityInput {
   instagramUrl: string;
   captionText?: string;
   applicationLink?: string;
   organizationName?: string;
   deadline?: string;
   performanceDate?: string;
-}): Opportunity {
+}
+
+export function createOpportunity(input: NewOpportunityInput): Opportunity {
   return {
     id: crypto.randomUUID(),
     instagramUrl: input.instagramUrl,
