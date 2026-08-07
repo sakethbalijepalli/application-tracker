@@ -2,7 +2,11 @@ import type { Opportunity } from "../models/opportunity";
 import type { CalendarClient } from "./calendarClient";
 
 export class CalendarService {
-  constructor(private readonly client: CalendarClient) {}
+  private readonly client: CalendarClient;
+
+  constructor(client: CalendarClient) {
+    this.client = client;
+  }
 
   async syncDeadlineEvent(opportunity: Opportunity): Promise<Opportunity> {
     if (!opportunity.deadline) return opportunity;
