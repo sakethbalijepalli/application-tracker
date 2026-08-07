@@ -85,6 +85,18 @@ async function updateEvent(accessToken: string, eventId: string, resource: unkno
   return data.id as string;
 }
 
+/** 404/410 mean the event is already gone — treated as success since the caller's goal ("this
+ * event should not exist") is already satisfied, not as a failure to surface. */
+async function deleteEvent(accessToken: string, eventId: string): Promise<void> {
+  const response = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`,
+    { method: "DELETE", headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!response.ok && response.status !== 404 && response.status !== 410) {
+    throw new Error(`Google Calendar delete failed: ${response.status} ${await response.text()}`);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: CORS_HEADERS });
@@ -109,14 +121,30 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Not authenticated" }, 401);
   }
 
-  let input: SaveEventRequest;
+  let body: Record<string, unknown>;
   try {
-    input = await req.json();
-    if (!input.title || !input.startDate || !input.endDate) {
-      throw new Error("title, startDate, and endDate are required");
-    }
+    body = await req.json();
   } catch {
     return jsonResponse({ error: "Invalid request body" }, 400);
+  }
+
+  if (body.action === "delete") {
+    if (!body.identifier || typeof body.identifier !== "string") {
+      return jsonResponse({ error: "identifier is required to delete an event" }, 400);
+    }
+    try {
+      const refreshToken = await getStoredRefreshToken(user.id);
+      const accessToken = await exchangeForAccessToken(refreshToken);
+      await deleteEvent(accessToken, body.identifier);
+      return jsonResponse({ deleted: true }, 200);
+    } catch (err) {
+      return jsonResponse({ error: err instanceof Error ? err.message : "Calendar delete failed" }, 502);
+    }
+  }
+
+  const input = body as SaveEventRequest;
+  if (!input.title || !input.startDate || !input.endDate) {
+    return jsonResponse({ error: "title, startDate, and endDate are required" }, 400);
   }
 
   try {

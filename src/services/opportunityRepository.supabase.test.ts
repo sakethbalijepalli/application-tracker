@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newOpportunityToRow, rowToOpportunity } from "./opportunityRepository.supabase";
+import { newOpportunityToRow, opportunityPatchToRow, rowToOpportunity } from "./opportunityRepository.supabase";
 
 describe("rowToOpportunity", () => {
   it("maps a snake_case database row to a camelCase Opportunity", () => {
@@ -98,5 +98,27 @@ describe("newOpportunityToRow", () => {
       deadline: null,
       performance_date: null,
     });
+  });
+});
+
+describe("opportunityPatchToRow", () => {
+  it("omits a key entirely when the patch value is undefined, leaving that column untouched", () => {
+    const row = opportunityPatchToRow({ status: "applied" });
+
+    expect(row).toEqual({ status: "applied" });
+    expect("deadline_event_id" in row).toBe(false);
+    expect("performance_event_id" in row).toBe(false);
+  });
+
+  it("writes null to clear an event id column when the patch explicitly sets it to null", () => {
+    const row = opportunityPatchToRow({ deadlineEventId: null, performanceEventId: null });
+
+    expect(row).toEqual({ deadline_event_id: null, performance_event_id: null });
+  });
+
+  it("writes the provided value when an event id is set to a real id", () => {
+    const row = opportunityPatchToRow({ deadlineEventId: "event-1" });
+
+    expect(row).toEqual({ deadline_event_id: "event-1" });
   });
 });

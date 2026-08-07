@@ -63,6 +63,18 @@ describe("OpportunityStore", () => {
     expect(store.all).toEqual([updated]);
   });
 
+  it("update can explicitly clear one event id field with null while leaving an omitted field untouched", async () => {
+    const repository = new FakeOpportunityRepository();
+    const store = new OpportunityStore(repository);
+    const created = await store.add({ instagramUrl: "https://instagram.com/p/abc" });
+    await store.update(created.id, { deadlineEventId: "event-1", performanceEventId: "event-2" });
+
+    const updated = await store.update(created.id, { deadlineEventId: null });
+
+    expect(updated.deadlineEventId).toBeUndefined();
+    expect(updated.performanceEventId).toBe("event-2");
+  });
+
   it("remove deletes the opportunity via the repository and drops it from the list", async () => {
     const repository = new FakeOpportunityRepository();
     const store = new OpportunityStore(repository);

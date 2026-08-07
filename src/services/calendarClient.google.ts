@@ -17,4 +17,11 @@ export class GoogleCalendarClient implements CalendarClient {
     if (!data) throw new Error("No data returned from sync-calendar-event.");
     return data.eventId;
   }
+
+  async deleteEvent(identifier: string): Promise<void> {
+    const { error } = await supabase.functions.invoke("sync-calendar-event", {
+      body: { action: "delete", identifier },
+    });
+    if (error) throw error;
+  }
 }

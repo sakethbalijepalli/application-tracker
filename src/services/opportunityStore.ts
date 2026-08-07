@@ -1,4 +1,4 @@
-import type { NewOpportunityInput, Opportunity, OpportunityStatus } from "../models/opportunity";
+import type { NewOpportunityInput, Opportunity, OpportunityPatch, OpportunityStatus } from "../models/opportunity";
 import type { OpportunityRepository } from "./opportunityRepository";
 
 export class OpportunityStore {
@@ -28,7 +28,7 @@ export class OpportunityStore {
     return this.update(id, { status });
   }
 
-  async update(id: string, patch: Partial<Omit<Opportunity, "id">>): Promise<Opportunity> {
+  async update(id: string, patch: OpportunityPatch): Promise<Opportunity> {
     const updated = await this.repository.update(id, patch);
     this.opportunities = this.opportunities.map((opportunity) =>
       opportunity.id === id ? updated : opportunity,

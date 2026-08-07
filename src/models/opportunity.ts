@@ -14,6 +14,18 @@ export interface Opportunity {
   createdAt: string;
 }
 
+/**
+ * Patch type for OpportunityRepository/OpportunityStore.update(). For most fields, an omitted
+ * key means "leave untouched" (ordinary Partial semantics). deadlineEventId/performanceEventId
+ * additionally accept an explicit `null` to mean "clear this field" — distinct from `undefined`
+ * (omitted), which leaves it as-is. Opportunity itself never holds `null` for these; only a
+ * patch can express "clear" as a deliberate action.
+ */
+export type OpportunityPatch = Partial<Omit<Opportunity, "id" | "deadlineEventId" | "performanceEventId">> & {
+  deadlineEventId?: string | null;
+  performanceEventId?: string | null;
+};
+
 export interface NewOpportunityInput {
   instagramUrl: string;
   captionText?: string;

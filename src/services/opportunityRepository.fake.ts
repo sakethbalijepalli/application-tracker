@@ -1,4 +1,9 @@
-import { createOpportunity, type NewOpportunityInput, type Opportunity } from "../models/opportunity";
+import {
+  createOpportunity,
+  type NewOpportunityInput,
+  type Opportunity,
+  type OpportunityPatch,
+} from "../models/opportunity";
 import type { OpportunityRepository } from "./opportunityRepository";
 
 export class FakeOpportunityRepository implements OpportunityRepository {
@@ -14,11 +19,17 @@ export class FakeOpportunityRepository implements OpportunityRepository {
     return created;
   }
 
-  async update(id: string, patch: Partial<Omit<Opportunity, "id">>): Promise<Opportunity> {
+  async update(id: string, patch: OpportunityPatch): Promise<Opportunity> {
     const index = this.opportunities.findIndex((opportunity) => opportunity.id === id);
     if (index === -1) throw new Error(`Opportunity not found: ${id}`);
 
-    const updated = { ...this.opportunities[index], ...patch };
+    // undefined means "leave untouched" (omitted from the patch); null means "clear it" —
+    // mirrors how SupabaseOpportunityRepository treats the same distinction against real columns.
+    const updated: Opportunity = { ...this.opportunities[index] };
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === undefined) continue;
+      (updated as unknown as Record<string, unknown>)[key] = value === null ? undefined : value;
+    }
     this.opportunities[index] = updated;
     return updated;
   }

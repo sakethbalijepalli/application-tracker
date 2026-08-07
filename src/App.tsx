@@ -65,7 +65,25 @@ function App() {
   const handleStatusChange = async (id: string, status: OpportunityStatus) => {
     setError(null);
     try {
-      await store.updateStatus(id, status);
+      // store.all, not the opportunities state var — this must be the freshest known
+      // deadlineEventId/performanceEventId, or a stale render could delete nothing while still
+      // clearing the id from a calendar event that's actually still live, orphaning it.
+      const opportunity = store.all.find((o) => o.id === id);
+
+      // Once you've applied or been accepted, the deadline reminder no longer serves a purpose
+      // — but an accepted opportunity's performance is still coming up, so that event stays.
+      // A rejected opportunity needs neither reminder.
+      if (opportunity && (status === "applied" || status === "accepted")) {
+        await calendarService.deleteDeadlineEvent(opportunity);
+        await store.update(id, { status, deadlineEventId: null });
+      } else if (opportunity && status === "rejected") {
+        await calendarService.deleteDeadlineEvent(opportunity);
+        await calendarService.deletePerformanceEvent(opportunity);
+        await store.update(id, { status, deadlineEventId: null, performanceEventId: null });
+      } else {
+        await store.updateStatus(id, status);
+      }
+
       setOpportunities(store.all);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update status.");

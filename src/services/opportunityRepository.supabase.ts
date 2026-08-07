@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { NewOpportunityInput, Opportunity, OpportunityStatus } from "../models/opportunity";
+import type { NewOpportunityInput, Opportunity, OpportunityPatch, OpportunityStatus } from "../models/opportunity";
 import type { OpportunityRepository } from "./opportunityRepository";
 
 interface OpportunityRow {
@@ -45,7 +45,7 @@ export function newOpportunityToRow(input: NewOpportunityInput, userId: string) 
   };
 }
 
-export function opportunityPatchToRow(patch: Partial<Omit<Opportunity, "id">>) {
+export function opportunityPatchToRow(patch: OpportunityPatch) {
   const row: Record<string, unknown> = {};
   if (patch.instagramUrl !== undefined) row.instagram_url = patch.instagramUrl;
   if (patch.captionText !== undefined) row.caption_text = patch.captionText;
@@ -53,8 +53,11 @@ export function opportunityPatchToRow(patch: Partial<Omit<Opportunity, "id">>) {
   if (patch.organizationName !== undefined) row.organization_name = patch.organizationName;
   if (patch.deadline !== undefined) row.deadline = patch.deadline ?? null;
   if (patch.performanceDate !== undefined) row.performance_date = patch.performanceDate ?? null;
-  if (patch.deadlineEventId !== undefined) row.deadline_event_id = patch.deadlineEventId ?? null;
-  if (patch.performanceEventId !== undefined) row.performance_event_id = patch.performanceEventId ?? null;
+  // null here means "clear this column" (an explicit patch action); undefined means "leave it
+  // untouched" and is filtered out by the guard above — passing it straight through preserves
+  // that distinction instead of collapsing null and undefined into the same null write.
+  if (patch.deadlineEventId !== undefined) row.deadline_event_id = patch.deadlineEventId;
+  if (patch.performanceEventId !== undefined) row.performance_event_id = patch.performanceEventId;
   if (patch.status !== undefined) row.status = patch.status;
   return row;
 }
@@ -94,7 +97,7 @@ export class SupabaseOpportunityRepository implements OpportunityRepository {
     return rowToOpportunity(data as OpportunityRow);
   }
 
-  async update(id: string, patch: Partial<Omit<Opportunity, "id">>): Promise<Opportunity> {
+  async update(id: string, patch: OpportunityPatch): Promise<Opportunity> {
     const { data, error } = await this.client
       .from(TABLE)
       .update(opportunityPatchToRow(patch))

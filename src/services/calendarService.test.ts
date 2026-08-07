@@ -39,4 +39,52 @@ describe("CalendarService", () => {
     expect(client.savedEvents[1].identifier).toBe("event-1");
     expect(opportunity.performanceEventId).toBe("event-1");
   });
+
+  it("deleteDeadlineEvent deletes the synced deadline event via the client", async () => {
+    const client = new FakeCalendarClient();
+    const service = new CalendarService(client);
+    const opportunity = createOpportunity({
+      instagramUrl: "https://instagram.com/p/abc",
+      deadline: new Date().toISOString(),
+    });
+    opportunity.deadlineEventId = "event-1";
+
+    await service.deleteDeadlineEvent(opportunity);
+
+    expect(client.deletedEventIds).toEqual(["event-1"]);
+  });
+
+  it("deleteDeadlineEvent is a no-op when the opportunity was never synced to the calendar", async () => {
+    const client = new FakeCalendarClient();
+    const service = new CalendarService(client);
+    const opportunity = createOpportunity({ instagramUrl: "https://instagram.com/p/abc" });
+
+    await service.deleteDeadlineEvent(opportunity);
+
+    expect(client.deletedEventIds).toEqual([]);
+  });
+
+  it("deletePerformanceEvent deletes the synced performance event via the client", async () => {
+    const client = new FakeCalendarClient();
+    const service = new CalendarService(client);
+    const opportunity = createOpportunity({
+      instagramUrl: "https://instagram.com/p/abc",
+      performanceDate: new Date().toISOString(),
+    });
+    opportunity.performanceEventId = "event-2";
+
+    await service.deletePerformanceEvent(opportunity);
+
+    expect(client.deletedEventIds).toEqual(["event-2"]);
+  });
+
+  it("deletePerformanceEvent is a no-op when the opportunity was never synced to the calendar", async () => {
+    const client = new FakeCalendarClient();
+    const service = new CalendarService(client);
+    const opportunity = createOpportunity({ instagramUrl: "https://instagram.com/p/abc" });
+
+    await service.deletePerformanceEvent(opportunity);
+
+    expect(client.deletedEventIds).toEqual([]);
+  });
 });

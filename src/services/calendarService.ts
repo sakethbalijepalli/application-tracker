@@ -39,4 +39,14 @@ export class CalendarService {
 
     return { ...opportunity, performanceEventId };
   }
+
+  async deleteDeadlineEvent(opportunity: Opportunity): Promise<void> {
+    if (!opportunity.deadlineEventId) return;
+    await this.client.deleteEvent(opportunity.deadlineEventId);
+  }
+
+  async deletePerformanceEvent(opportunity: Opportunity): Promise<void> {
+    if (!opportunity.performanceEventId) return;
+    await this.client.deleteEvent(opportunity.performanceEventId);
+  }
 }
