@@ -140,6 +140,42 @@ Deno.test("a yearless 'to' range scraped after its own end date rolls to next ye
   assertEquals(result.deadline, "2027-09-01");
 });
 
+Deno.test("parses a day.month.year dotted date next to a deadline keyword", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption("Deadline: 26.08.2026", referenceDate);
+  assertEquals(result.deadline, "2026-08-26");
+});
+
+Deno.test("does not misread a dotted date as month-first (26.08.2026 is Aug 26, not month 26)", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption("Deadline: 26.08.2026", referenceDate);
+  assertEquals(result.deadline, "2026-08-26");
+});
+
+Deno.test("classifies a date by a keyword immediately after it when nothing precedes it", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption("Online\nRound 1\n26.08.2026\nDeadline missions", referenceDate);
+  assertEquals(result.deadline, "2026-08-26");
+});
+
+Deno.test("does not classify a date when unrelated text (not a keyword) immediately follows it", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "See details 26.08.2026 in the newsletter for our upcoming season.",
+    referenceDate,
+  );
+  assertEquals(result.deadline, undefined);
+  assertEquals(result.performanceDate, undefined);
+});
+
+Deno.test("extracts a deadline from real OCR'd flyer text with a trailing dotted date and label", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const ocrText =
+    "Essn\nArudhra\nAuditions 2026\nEvery movement speaks,\nEvery glance awakens\nm\nOnline\nRound 1\n26.08.2026\nDeadline missions\nER, AR";
+  const result = extractDatesFromCaption(ocrText, referenceDate);
+  assertEquals(result.deadline, "2026-08-26");
+});
+
 Deno.test("extracts both deadline and performance date from a real multi-category open-call caption", () => {
   const referenceDate = new Date(2026, 0, 1);
   const caption = [

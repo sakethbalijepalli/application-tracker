@@ -51,7 +51,16 @@ const NO_PLURAL_MATCH = new Set(["performance"]);
 
 const MONTH_NAME_DATE = /\b(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+(\d{1,2})(?:st|nd|rd|th)?(?:\s*[-–]\s*\d{1,2}(?:st|nd|rd|th)?)?(?:,?\s*(\d{4}))?\b/gi;
 const NUMERIC_DATE = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/g;
+// Dot-separated is the international day.month.year convention (distinct from the slash
+// pattern's US month/day) — the 4-digit year is required since an unanchored day.month would
+// also match version numbers or prices in noisy OCR'd flyer text.
+const DOTTED_DATE = /\b(\d{1,2})\.(\d{1,2})\.(\d{4})\b/g;
 const RANGE_JOINER = /^\s*to\s*$/i;
+// How far past a date to look for a classifying keyword when nothing precedes it — flyers and
+// list-style pages (e.g. "26.08.2026\nDeadline") often put the label after the date, but only
+// checking the *immediate* next token (past pure separator punctuation) keeps this from bleeding
+// into an unrelated later sentence the way a full lookahead window would.
+const AFTER_SEPARATOR = /^[\s:–—-]*/;
 
 interface DateMatch {
   index: number;
@@ -87,6 +96,13 @@ function findDateMatches(caption: string): DateMatch[] {
       if (year < 100) year += 2000;
     }
     matches.push({ index: m.index, end: m.index + m[0].length, monthIndex: month - 1, day, year });
+  }
+
+  for (const m of caption.matchAll(DOTTED_DATE)) {
+    const day = Number(m[1]);
+    const month = Number(m[2]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+    matches.push({ index: m.index, end: m.index + m[0].length, monthIndex: month - 1, day, year: Number(m[3]) });
   }
 
   return matches.sort((a, b) => a.index - b.index);
@@ -139,6 +155,25 @@ function classify(context: string): "deadline" | "performance" | undefined {
   return deadlineIndex > performanceIndex ? "deadline" : "performance";
 }
 
+function startsWithKeyword(text: string, keywords: string[]): boolean {
+  return keywords.some((keyword) => {
+    if (!text.startsWith(keyword)) return false;
+    const nextChar = text[keyword.length];
+    return !nextChar || !/[a-z]/i.test(nextChar);
+  });
+}
+
+/** Only fires when the classifying word is the very next token after the date (past pure
+ * separator punctuation) — see the AFTER_SEPARATOR comment for why this stays narrow. */
+function classifyAfter(caption: string, matchEnd: number, windowSize = 60): "deadline" | "performance" | undefined {
+  const after = caption.slice(matchEnd, matchEnd + windowSize).toLowerCase();
+  const separator = after.match(AFTER_SEPARATOR)?.[0] ?? "";
+  const rest = after.slice(separator.length);
+  if (startsWithKeyword(rest, DEADLINE_KEYWORDS)) return "deadline";
+  if (startsWithKeyword(rest, PERFORMANCE_KEYWORDS)) return "performance";
+  return undefined;
+}
+
 export function extractDatesFromCaption(caption: string, referenceDate: Date): ExtractedDates {
   const result: ExtractedDates = {};
   const matches = findDateMatches(caption);
@@ -165,7 +200,7 @@ export function extractDatesFromCaption(caption: string, referenceDate: Date): E
 
   matches.forEach((match, i) => {
     if (consumed.has(i)) return;
-    const kind = classify(contextBefore(caption, match.index));
+    const kind = classify(contextBefore(caption, match.index)) ?? classifyAfter(caption, match.end);
     if (kind === "deadline" && !result.deadline) {
       result.deadline = toIsoDate(match, referenceDate);
     } else if (kind === "performance" && !result.performanceDate) {
