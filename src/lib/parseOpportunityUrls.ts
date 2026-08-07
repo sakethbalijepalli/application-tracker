@@ -1,11 +1,18 @@
-/** Parses a block of pasted text into a deduped list of Instagram URLs — one or many per
- * line, comma-separated, or mixed. Anything that doesn't look like an instagram.com link is
- * silently dropped rather than rejecting the whole paste. */
-export function parseInstagramUrls(rawText: string): string[] {
+/** Parses a block of pasted text into a deduped list of URLs — one or many per line,
+ * comma-separated, or mixed. An opportunity may be an Instagram post or a direct application
+ * page on any site, so anything that isn't a valid http(s) URL is silently dropped rather than
+ * rejecting the whole paste. */
+export function parseOpportunityUrls(rawText: string): string[] {
   const candidates = rawText
     .split(/[\s,]+/)
     .map((token) => token.trim())
-    .filter((token) => token.includes("instagram.com"));
+    .filter((token) => {
+      try {
+        return new URL(token).protocol.startsWith("http");
+      } catch {
+        return false;
+      }
+    });
 
   return [...new Set(candidates)];
 }

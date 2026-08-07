@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { extractOpportunityDetails } from "./extract.ts";
+import { extractOpportunityDetails, extractOpportunityDetailsFromWebpage } from "./extract.ts";
 
 const REF_DATE = new Date(2026, 0, 1);
 
@@ -91,4 +91,54 @@ Deno.test("extractOpportunityDetails prefers a caption date over a conflicting O
   );
 
   assertEquals(result.deadline, "2026-03-03");
+});
+
+// Fixture captured from a real Apify website-content-crawler run against a JS-rendered
+// application page (danzaorganica.org) — a plain fetch() of that URL returns almost none of
+// this text, since the real content only appears after the page's client-side JS runs.
+const REAL_CRAWLED_PAGE_TEXT =
+  "We Create! Celebrating Women in the Arts\n" +
+  "Submission Deadline: August 10th, 2026\n\n" +
+  "Thank you for your interest in participating in the We Create 2026-2027 Festival Fellowship. " +
+  "Please read carefully before applying.\n" +
+  "Fellowship Dates:\n" +
+  "August 10th, 2026: Application Deadline\n" +
+  "August 21st, 2026: Notifications Sent";
+
+Deno.test("extractOpportunityDetailsFromWebpage pulls the deadline out of crawled page text", () => {
+  const result = extractOpportunityDetailsFromWebpage(
+    { text: REAL_CRAWLED_PAGE_TEXT },
+    "https://www.danzaorganica.org/Apply-to-the-We-Create.php",
+    REF_DATE,
+  );
+
+  assertEquals(result.deadline, "2026-08-10");
+  assertEquals(result.captionText, REAL_CRAWLED_PAGE_TEXT);
+});
+
+Deno.test("extractOpportunityDetailsFromWebpage defaults organizationName to the site's hostname without www", () => {
+  const result = extractOpportunityDetailsFromWebpage(
+    { text: "" },
+    "https://www.danzaorganica.org/Apply-to-the-We-Create.php",
+    REF_DATE,
+  );
+
+  assertEquals(result.organizationName, "danzaorganica.org");
+});
+
+Deno.test("extractOpportunityDetailsFromWebpage defaults applicationLink to the page the user found", () => {
+  const result = extractOpportunityDetailsFromWebpage(
+    { text: "" },
+    "https://www.danzaorganica.org/Apply-to-the-We-Create.php",
+    REF_DATE,
+  );
+
+  assertEquals(result.applicationLink, "https://www.danzaorganica.org/Apply-to-the-We-Create.php");
+});
+
+Deno.test("extractOpportunityDetailsFromWebpage handles a missing text field without throwing", () => {
+  const result = extractOpportunityDetailsFromWebpage({}, "https://example.com/apply", REF_DATE);
+
+  assertEquals(result.captionText, "");
+  assertEquals(result.deadline, undefined);
 });

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { parseInstagramUrls } from "../lib/parseInstagramUrls";
+import { parseOpportunityUrls } from "../lib/parseOpportunityUrls";
 import { scrapeOpportunityDetails } from "../lib/scrapeOpportunity";
 import type { NewOpportunityInput } from "../models/opportunity";
 
@@ -23,7 +23,7 @@ export function BulkAddOpportunities({ onAdd }: BulkAddOpportunitiesProps) {
   };
 
   const handleAddAll = async () => {
-    const urls = parseInstagramUrls(rawText);
+    const urls = parseOpportunityUrls(rawText);
     if (urls.length === 0) return;
 
     setIsProcessing(true);
@@ -57,7 +57,7 @@ export function BulkAddOpportunities({ onAdd }: BulkAddOpportunitiesProps) {
     <div className="bulk-add">
       <h2>Bulk add from links</h2>
       <textarea
-        placeholder="Paste any number of Instagram links, one per line"
+        placeholder="Paste any number of links, one per line — Instagram posts or direct application pages"
         value={rawText}
         onChange={(e) => setRawText(e.target.value)}
         rows={4}

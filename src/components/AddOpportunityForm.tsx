@@ -37,7 +37,7 @@ export function AddOpportunityForm({ onSubmit }: AddOpportunityFormProps) {
         performanceDate: details.performanceDate || current.performanceDate,
       }));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch details from Instagram.");
+      setError(err instanceof Error ? err.message : "Failed to fetch details from this link.");
     } finally {
       setIsFetchingDetails(false);
     }
@@ -71,12 +71,12 @@ export function AddOpportunityForm({ onSubmit }: AddOpportunityFormProps) {
       <h2>Add opportunity</h2>
       <div className="form-grid">
         <label className="field-full">
-          Instagram URL
+          Link (Instagram post or application page)
           <div className="input-with-action">
             <input
               type="url"
               required
-              placeholder="https://instagram.com/p/…"
+              placeholder="https://instagram.com/p/… or a direct application link"
               value={form.instagramUrl}
               onChange={(e) => setForm({ ...form, instagramUrl: e.target.value })}
             />

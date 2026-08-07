@@ -8,9 +8,9 @@ export interface ScrapedOpportunityDetails {
   performanceDate?: string;
 }
 
-export async function scrapeOpportunityDetails(instagramUrl: string): Promise<ScrapedOpportunityDetails> {
+export async function scrapeOpportunityDetails(sourceUrl: string): Promise<ScrapedOpportunityDetails> {
   const { data, error } = await supabase.functions.invoke<ScrapedOpportunityDetails>("scrape-opportunity", {
-    body: { instagramUrl },
+    body: { sourceUrl },
   });
   if (error) throw error;
   if (!data) throw new Error("No data returned from scrape-opportunity.");

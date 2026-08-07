@@ -1,13 +1,16 @@
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
   extractOpportunityDetails,
+  extractOpportunityDetailsFromWebpage,
   type ApifyInstagramPostItem,
   type ApifyInstagramProfileItem,
+  type ApifyWebsiteCrawlItem,
 } from "./extract.ts";
 import { detectTextInImage } from "./ocr.ts";
 
 const APIFY_TOKEN = Deno.env.get("APIFY_TOKEN");
-const APIFY_ACTOR = "apify~instagram-scraper";
+const INSTAGRAM_ACTOR = "apify~instagram-scraper";
+const WEBSITE_ACTOR = "apify~website-content-crawler";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 
@@ -24,9 +27,9 @@ function jsonResponse(body: unknown, status: number): Response {
   });
 }
 
-async function runApifyActor<T>(input: Record<string, unknown>): Promise<T[]> {
+async function runApifyActor<T>(actor: string, input: Record<string, unknown>): Promise<T[]> {
   const response = await fetch(
-    `https://api.apify.com/v2/acts/${APIFY_ACTOR}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
+    `https://api.apify.com/v2/acts/${actor}/run-sync-get-dataset-items?token=${APIFY_TOKEN}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -42,7 +45,7 @@ async function runApifyActor<T>(input: Record<string, unknown>): Promise<T[]> {
 }
 
 async function scrapeInstagramPost(instagramUrl: string): Promise<ApifyInstagramPostItem> {
-  const items = await runApifyActor<ApifyInstagramPostItem>({
+  const items = await runApifyActor<ApifyInstagramPostItem>(INSTAGRAM_ACTOR, {
     directUrls: [instagramUrl],
     resultsLimit: 1,
   });
@@ -53,12 +56,31 @@ async function scrapeInstagramPost(instagramUrl: string): Promise<ApifyInstagram
 }
 
 async function scrapeInstagramProfile(username: string): Promise<ApifyInstagramProfileItem> {
-  const items = await runApifyActor<ApifyInstagramProfileItem>({
+  const items = await runApifyActor<ApifyInstagramProfileItem>(INSTAGRAM_ACTOR, {
     resultsType: "details",
     directUrls: [`https://www.instagram.com/${username}/`],
     resultsLimit: 1,
   });
   return items[0] ?? {};
+}
+
+function isInstagramUrl(url: string): boolean {
+  return url.includes("instagram.com");
+}
+
+// crawlerType: "playwright:firefox" renders client-side JS before extracting text — a plain
+// fetch() returns almost nothing useful for pages whose content (often the whole application
+// form/details) only appears after the page's own JS runs.
+async function scrapeWebpage(url: string): Promise<ApifyWebsiteCrawlItem> {
+  const items = await runApifyActor<ApifyWebsiteCrawlItem>(WEBSITE_ACTOR, {
+    startUrls: [{ url }],
+    maxCrawlPages: 1,
+    crawlerType: "playwright:firefox",
+  });
+  if (items.length === 0) {
+    throw new Error("No content could be crawled from this URL.");
+  }
+  return items[0];
 }
 
 Deno.serve(async (req: Request) => {
@@ -86,20 +108,29 @@ Deno.serve(async (req: Request) => {
     return jsonResponse({ error: "Not authenticated" }, 401);
   }
 
-  let instagramUrl: string;
+  let sourceUrl: string;
   try {
     const body = await req.json();
-    instagramUrl = body.instagramUrl;
-    if (!instagramUrl || typeof instagramUrl !== "string") {
-      throw new Error("instagramUrl is required");
+    sourceUrl = body.sourceUrl;
+    if (!sourceUrl || typeof sourceUrl !== "string") {
+      throw new Error("sourceUrl is required");
     }
   } catch {
     return jsonResponse({ error: "Invalid request body" }, 400);
   }
 
+  if (!isInstagramUrl(sourceUrl)) {
+    try {
+      const item = await scrapeWebpage(sourceUrl);
+      return jsonResponse(extractOpportunityDetailsFromWebpage(item, sourceUrl, new Date()), 200);
+    } catch (err) {
+      return jsonResponse({ error: err instanceof Error ? err.message : "Scrape failed" }, 502);
+    }
+  }
+
   let post: ApifyInstagramPostItem;
   try {
-    post = await scrapeInstagramPost(instagramUrl);
+    post = await scrapeInstagramPost(sourceUrl);
   } catch (err) {
     return jsonResponse({ error: err instanceof Error ? err.message : "Scrape failed" }, 502);
   }

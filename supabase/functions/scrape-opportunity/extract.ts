@@ -38,3 +38,37 @@ export function extractOpportunityDetails(
     performanceDate,
   };
 }
+
+export interface ApifyWebsiteCrawlItem {
+  text?: string;
+}
+
+/** Falls back to the site's hostname for organizationName — unlike an Instagram profile, a
+ * crawled webpage has no reliably-present "org name" field (page <title> is usually the event
+ * or program name, not the organization). applicationLink is the URL itself: unlike an
+ * Instagram post, which links out to a bio link, the user found this page BY navigating to the
+ * application itself. Both are just the best available default — the add form lets the user
+ * correct either. */
+export function extractOpportunityDetailsFromWebpage(
+  item: ApifyWebsiteCrawlItem,
+  sourceUrl: string,
+  referenceDate: Date,
+): ScrapedOpportunityDetails {
+  const text = item.text ?? "";
+  const { deadline, performanceDate } = extractDatesFromCaption(text, referenceDate);
+
+  let organizationName = "";
+  try {
+    organizationName = new URL(sourceUrl).hostname.replace(/^www\./, "");
+  } catch {
+    // Malformed sourceUrl — leave organizationName blank rather than throwing.
+  }
+
+  return {
+    captionText: text,
+    organizationName,
+    applicationLink: sourceUrl,
+    deadline,
+    performanceDate,
+  };
+}
