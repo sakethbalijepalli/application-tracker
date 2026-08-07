@@ -66,3 +66,95 @@ Deno.test("recognizes 'scheduled for' as a performance-date keyword", () => {
   );
   assertEquals(result.performanceDate, "2026-11-01");
 });
+
+Deno.test("recognizes plain 'due' (without 'by') as a deadline keyword", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption("AUDITIONS\nApplication due August 31", referenceDate);
+  assertEquals(result.deadline, "2026-08-31");
+});
+
+Deno.test("recognizes 'submitted by' as a deadline keyword", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "Application must be submitted by Aug 31st for that specific performance.",
+    referenceDate,
+  );
+  assertEquals(result.deadline, "2026-08-31");
+});
+
+Deno.test("does not let a plural category label like 'Performances' misclassify a nearby date", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "Entries for SHORT WORKS & ALTERNATIVE SPACE Performances August 1 to September 1!",
+    referenceDate,
+  );
+  assertEquals(result.performanceDate, undefined);
+});
+
+Deno.test("uses the end date of an unqualified 'to' range as the deadline", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "Entries for SHORT WORKS & ALTERNATIVE SPACE Performances August 1 to September 1!",
+    referenceDate,
+  );
+  assertEquals(result.deadline, "2026-09-01");
+});
+
+Deno.test("keeps the start date as the deadline when a 'to' range is explicitly marked with a deadline keyword", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "Deadline: March 3 to March 10, 2026.",
+    referenceDate,
+  );
+  assertEquals(result.deadline, "2026-03-10");
+});
+
+Deno.test("captures the explicit year on a hyphenated day-range date", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "The event is taking place March 5-7, 2027 in Kalamazoo.",
+    referenceDate,
+  );
+  assertEquals(result.performanceDate, "2027-03-05");
+});
+
+Deno.test("uses the start date of a 'to' range as the performance date when the range describes a run of shows", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const result = extractDatesFromCaption(
+    "Performing at the Wellspring Theater June 12 to June 14, 2026.",
+    referenceDate,
+  );
+  assertEquals(result.performanceDate, "2026-06-12");
+  assertEquals(result.deadline, undefined);
+});
+
+Deno.test("a yearless 'to' range scraped after its own end date rolls to next year, same as any other yearless date", () => {
+  // Documents existing behavior, not a fix: resolveYear() has always rolled a passed yearless
+  // date forward (see the rollover tests above). Scraping "Aug 1 to Sep 1" after Sep 1 has
+  // already passed inherits that same assumption for the range's end date.
+  const referenceDate = new Date(2026, 8, 15); // Sept 15, 2026 — after the window closed
+  const result = extractDatesFromCaption(
+    "Entries for SHORT WORKS & ALTERNATIVE SPACE Performances August 1 to September 1!",
+    referenceDate,
+  );
+  assertEquals(result.deadline, "2027-09-01");
+});
+
+Deno.test("extracts both deadline and performance date from a real multi-category open-call caption", () => {
+  const referenceDate = new Date(2026, 0, 1);
+  const caption = [
+    "Artist submissions are OPEN 🎉",
+    "RADFest is welcoming entries for SHORT WORKS & ALTERNATIVE SPACE Performances August 1 to September 1!",
+    "",
+    "We are looking to provide emerging, professional, and experimental artists the opportunity",
+    "to present their work at RADFest, taking place March 5-7, 2027. Artists will experience a",
+    "juried event hosted and supported by Wellspring, in downtown Kalamazoo, MI.",
+    "",
+    "Stay tuned for more category submissions:",
+    "❇️ Dance Film Series & Durational Instillation ➡️September 15, 2026",
+    "❇️Young Artist Series ➡️December 1, 2026",
+  ].join("\n");
+  const result = extractDatesFromCaption(caption, referenceDate);
+  assertEquals(result.deadline, "2026-09-01");
+  assertEquals(result.performanceDate, "2027-03-05");
+});
