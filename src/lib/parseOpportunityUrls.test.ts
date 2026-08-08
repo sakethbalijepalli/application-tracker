@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseOpportunityUrls } from "./parseOpportunityUrls";
+import { normalizeUrlForComparison, parseOpportunityUrls } from "./parseOpportunityUrls";
 
 describe("parseOpportunityUrls", () => {
   it("splits multiple URLs pasted on separate lines", () => {
@@ -61,7 +61,42 @@ describe("parseOpportunityUrls", () => {
     ]);
   });
 
+  it("dedupes the same link shared twice with different tracking params, keeping the first form", () => {
+    const input =
+      "https://www.danzaorganica.org/Apply-to-the-We-Create.php?utm_source=ig&utm_medium=social\n" +
+      "https://www.danzaorganica.org/Apply-to-the-We-Create.php?igsh=abc123";
+    expect(parseOpportunityUrls(input)).toEqual([
+      "https://www.danzaorganica.org/Apply-to-the-We-Create.php?utm_source=ig&utm_medium=social",
+    ]);
+  });
+
+  it("dedupes the same link differing only by a trailing slash", () => {
+    const input = "https://instagram.com/p/abc/\nhttps://instagram.com/p/abc";
+    expect(parseOpportunityUrls(input)).toEqual(["https://instagram.com/p/abc/"]);
+  });
+
   it("returns an empty array for blank input", () => {
     expect(parseOpportunityUrls("   \n  \n")).toEqual([]);
+  });
+});
+
+describe("normalizeUrlForComparison", () => {
+  it("strips query params", () => {
+    expect(normalizeUrlForComparison("https://example.com/apply?utm_source=ig&igsh=abc")).toBe(
+      "https://example.com/apply",
+    );
+  });
+
+  it("strips a trailing slash but keeps a bare root path as '/'", () => {
+    expect(normalizeUrlForComparison("https://example.com/apply/")).toBe("https://example.com/apply");
+    expect(normalizeUrlForComparison("https://example.com/")).toBe("https://example.com/");
+  });
+
+  it("lowercases the host but preserves path casing", () => {
+    expect(normalizeUrlForComparison("https://Example.COM/Apply-Here")).toBe("https://example.com/Apply-Here");
+  });
+
+  it("returns the original string unchanged when it isn't a valid URL", () => {
+    expect(normalizeUrlForComparison("not a url")).toBe("not a url");
   });
 });

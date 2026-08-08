@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { FakeOpportunityRepository } from "./opportunityRepository.fake";
-import { OpportunityStore } from "./opportunityStore";
+import { DuplicateOpportunityError, OpportunityStore } from "./opportunityStore";
 
 describe("OpportunityStore", () => {
   it("load fetches opportunities from the repository and exposes them", async () => {
@@ -92,7 +92,7 @@ describe("OpportunityStore", () => {
         deadline: "2026-09-01T00:00:00.000Z",
         performanceDate: "2027-03-05T00:00:00.000Z",
       }),
-    ).rejects.toThrow(/already/i);
+    ).rejects.toBeInstanceOf(DuplicateOpportunityError);
 
     expect(store.all).toHaveLength(1);
     expect(await repository.list()).toHaveLength(1);

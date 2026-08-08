@@ -9,6 +9,16 @@ function dateOnly(iso: string | undefined): string {
   return iso?.slice(0, 10) ?? "";
 }
 
+/** Thrown by add() when isDuplicate() matches. A distinct class (not a plain Error) so callers —
+ * e.g. bulk-add — can tell "this is already tracked, skip it" apart from a real failure without
+ * resorting to fragile message matching. */
+export class DuplicateOpportunityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "DuplicateOpportunityError";
+  }
+}
+
 export class OpportunityStore {
   private readonly repository: OpportunityRepository;
   private opportunities: Opportunity[] = [];
@@ -28,7 +38,9 @@ export class OpportunityStore {
 
   async add(input: NewOpportunityInput): Promise<Opportunity> {
     if (this.isDuplicate(input)) {
-      throw new Error("An opportunity for this organization with these dates has already been added.");
+      throw new DuplicateOpportunityError(
+        "An opportunity for this organization with these dates has already been added.",
+      );
     }
     const created = await this.repository.create(input);
     this.opportunities = [...this.opportunities, created];

@@ -168,7 +168,10 @@ function App() {
 
       <div className="app-layout">
         <aside className="form-panel">
-          <BulkAddOpportunities onAdd={handleAdd} />
+          <BulkAddOpportunities
+            existingUrls={new Set(opportunities.map((o) => o.instagramUrl))}
+            onAdd={handleAdd}
+          />
           <AddOpportunityForm onSubmit={handleAdd} />
         </aside>
         <main className="list-panel">

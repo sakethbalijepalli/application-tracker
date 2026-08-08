@@ -387,6 +387,10 @@ h1 em,
   color: var(--gold-bright);
 }
 
+.bulk-add-results li[data-status='already-added'] .bulk-add-status {
+  color: var(--status-discovered-text);
+}
+
 .form-grid {
   display: grid;
   grid-template-columns: 1fr;
