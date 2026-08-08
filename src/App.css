@@ -424,6 +424,51 @@ h1 em,
 
 /* Opportunity list */
 
+.opportunity-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.opportunity-group-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0 0 var(--space-3);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-soft);
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.opportunity-group-heading::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-discovered-text);
+}
+
+.opportunity-group[data-status='applied'] .opportunity-group-heading::before {
+  background: var(--status-applied-text);
+}
+
+.opportunity-group[data-status='accepted'] .opportunity-group-heading::before {
+  background: var(--status-accepted-text);
+}
+
+.opportunity-group[data-status='rejected'] .opportunity-group-heading::before {
+  background: var(--status-rejected-text);
+}
+
+.opportunity-group-heading .count-badge {
+  margin-left: auto;
+}
+
 .opportunity-list {
   list-style: none;
   margin: 0;

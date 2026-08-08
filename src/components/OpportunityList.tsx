@@ -1,6 +1,14 @@
+import { groupOpportunitiesByStatus } from "../lib/groupOpportunities";
 import type { Opportunity, OpportunityStatus } from "../models/opportunity";
 
 const STATUSES: OpportunityStatus[] = ["discovered", "applied", "accepted", "rejected"];
+
+const STATUS_LABELS: Record<OpportunityStatus, string> = {
+  discovered: "Discovered",
+  applied: "Applied",
+  accepted: "Accepted",
+  rejected: "Rejected",
+};
 
 // Mirrors App.tsx's handleStatusChange: applied/accepted delete the deadline event only,
 // rejected deletes both. Each is a real, hard-to-reverse action against Google Calendar, not
@@ -66,94 +74,108 @@ export function OpportunityList({ opportunities, onStatusChange, onDelete, onSyn
     onStatusChange(opportunity.id, status);
   };
 
+  const groups = groupOpportunitiesByStatus(opportunities);
+
   return (
-    <ul className="opportunity-list">
-      {opportunities.map((opportunity) => (
-        <li key={opportunity.id} className="opportunity-card" data-status={opportunity.status}>
-          <div className="opportunity-card-header">
-            <span className="opportunity-card-title">{opportunity.organizationName || "Untitled opportunity"}</span>
-            <button
-              type="button"
-              className="delete-btn"
-              aria-label={`Delete ${opportunity.organizationName || "this opportunity"}`}
-              onClick={() => handleDelete(opportunity)}
-            >
-              ✕
-            </button>
-          </div>
-          <a
-            className="opportunity-card-link"
-            href={opportunity.instagramUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            View Instagram post ↗
-          </a>
-          {opportunity.applicationLink && opportunity.status !== "accepted" && (
-            <a
-              className="opportunity-card-link"
-              href={opportunity.applicationLink}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Application link ↗
-            </a>
-          )}
-          <div className="opportunity-card-meta">
-            {opportunity.deadline && (
-              <div className="sync-row">
-                <span>Deadline: {formatDateOnly(opportunity.deadline)}</span>
-                <button
-                  type="button"
-                  className="sync-btn"
-                  disabled={syncingKey === `${opportunity.id}-deadline`}
-                  onClick={() => onSync(opportunity.id, "deadline")}
+    <div className="opportunity-groups">
+      {groups.map((group) => (
+        <section key={group.status} className="opportunity-group" data-status={group.status}>
+          <h3 className="opportunity-group-heading">
+            {STATUS_LABELS[group.status]}
+            <span className="count-badge">{group.opportunities.length}</span>
+          </h3>
+          <ul className="opportunity-list">
+            {group.opportunities.map((opportunity) => (
+              <li key={opportunity.id} className="opportunity-card" data-status={opportunity.status}>
+                <div className="opportunity-card-header">
+                  <span className="opportunity-card-title">
+                    {opportunity.organizationName || "Untitled opportunity"}
+                  </span>
+                  <button
+                    type="button"
+                    className="delete-btn"
+                    aria-label={`Delete ${opportunity.organizationName || "this opportunity"}`}
+                    onClick={() => handleDelete(opportunity)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <a
+                  className="opportunity-card-link"
+                  href={opportunity.instagramUrl}
+                  target="_blank"
+                  rel="noreferrer"
                 >
-                  {syncingKey === `${opportunity.id}-deadline`
-                    ? "Syncing…"
-                    : opportunity.deadlineEventId
-                      ? "Synced ✓"
-                      : "Sync"}
-                </button>
-              </div>
-            )}
-            {opportunity.performanceDate && (
-              <div className="sync-row">
-                <span>Performance: {formatDateOnly(opportunity.performanceDate)}</span>
-                <button
-                  type="button"
-                  className="sync-btn"
-                  disabled={syncingKey === `${opportunity.id}-performance`}
-                  onClick={() => onSync(opportunity.id, "performance")}
-                >
-                  {syncingKey === `${opportunity.id}-performance`
-                    ? "Syncing…"
-                    : opportunity.performanceEventId
-                      ? "Synced ✓"
-                      : "Sync"}
-                </button>
-              </div>
-            )}
-          </div>
-          <div className="opportunity-card-footer">
-            <label>
-              Status
-              <select
-                className="status-select"
-                data-status={opportunity.status}
-                value={opportunity.status}
-                onChange={(e) => handleStatusChange(opportunity, e.target.value as OpportunityStatus)}
-              >
-                {STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {status}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-        </li>
+                  View Instagram post ↗
+                </a>
+                {opportunity.applicationLink && opportunity.status !== "accepted" && (
+                  <a
+                    className="opportunity-card-link"
+                    href={opportunity.applicationLink}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Application link ↗
+                  </a>
+                )}
+                <div className="opportunity-card-meta">
+                  {opportunity.deadline && (
+                    <div className="sync-row">
+                      <span>Deadline: {formatDateOnly(opportunity.deadline)}</span>
+                      <button
+                        type="button"
+                        className="sync-btn"
+                        disabled={syncingKey === `${opportunity.id}-deadline`}
+                        onClick={() => onSync(opportunity.id, "deadline")}
+                      >
+                        {syncingKey === `${opportunity.id}-deadline`
+                          ? "Syncing…"
+                          : opportunity.deadlineEventId
+                            ? "Synced ✓"
+                            : "Sync"}
+                      </button>
+                    </div>
+                  )}
+                  {opportunity.performanceDate && (
+                    <div className="sync-row">
+                      <span>Performance: {formatDateOnly(opportunity.performanceDate)}</span>
+                      <button
+                        type="button"
+                        className="sync-btn"
+                        disabled={syncingKey === `${opportunity.id}-performance`}
+                        onClick={() => onSync(opportunity.id, "performance")}
+                      >
+                        {syncingKey === `${opportunity.id}-performance`
+                          ? "Syncing…"
+                          : opportunity.performanceEventId
+                            ? "Synced ✓"
+                            : "Sync"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+                <div className="opportunity-card-footer">
+                  <label>
+                    Status
+                    <select
+                      className="status-select"
+                      data-status={opportunity.status}
+                      value={opportunity.status}
+                      onChange={(e) => handleStatusChange(opportunity, e.target.value as OpportunityStatus)}
+                    >
+                      {STATUSES.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
       ))}
-    </ul>
+    </div>
   );
 }
